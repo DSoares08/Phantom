@@ -1,6 +1,9 @@
 package network
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type ServerOpts struct {
 	Transports []Transport
@@ -22,6 +25,7 @@ func NewServer(opts ServerOpts) *Server {
 
 func (s *Server) Start() {
 	s.initTransports()
+	ticker := time.NewTicker(5 * time.Second)
 
 free:
 	for {
@@ -30,6 +34,8 @@ free:
 			fmt.Printf("%+v", rpc)
 		case <-s.quitCh:
 			break free
+		case <-ticker.C:
+			fmt.Println("do stuff every x seconds")
 		}
 	}
 
