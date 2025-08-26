@@ -1,7 +1,16 @@
 package main
 
-import "fmt"
+import (
+	"github.com/DSoares08/Phantom/network"
+)
 
 func main() {
-	fmt.Println("Hello, World!")
+	trLocal := network.NewLocalTransport("LOCAL")
+
+	opts := network.ServerOpts{
+		Transports: []network.Transport{trLocal},
+	}
+
+	s := network.NewServer(opts)
+	s.Start()
 }

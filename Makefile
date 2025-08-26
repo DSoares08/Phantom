@@ -1,5 +1,5 @@
 build:
-	go build -o ./bin/phantom
+	go build -buildvcs=false -o ./bin/phantom
 
 run: build
 	./bin/phantom
