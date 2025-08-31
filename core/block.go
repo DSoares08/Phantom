@@ -2,6 +2,8 @@ package core
 
 import (
 	"encoding/binary"
+	"crypto/sha256"
+	"bytes"
 	"io"
 
 	"github.com/DSoares08/Phantom/types"
@@ -10,7 +12,7 @@ import (
 type Header struct {
 	Version uint32
 	PrevBlock types.Hash
-	Timestamp uint64
+	Timestamp int64
 	Height uint32
 	Nonce uint64
 }
@@ -50,4 +52,46 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 type Block struct {
 	Header
 	Transactions []Transaction
+
+	// Cached version of the hash
+	hash types.Hash
+}
+
+func (b *Block) Hash() types.Hash {
+	buf := &bytes.Buffer{}
+	b.Header.EncodeBinary(buf)
+
+	if b.hash.IsZero() {
+		b.hash = types.Hash(sha256.Sum256(buf.Bytes()))
+	}
+
+	return b.hash
+}
+
+func (b *Block) EncodeBinary(w io.Writer) error {
+	if err := b.Header.EncodeBinary(w); err != nil {
+		return err
+	}
+
+	for _, tx := range b.Transactions {
+		if err := tx.EncodeBinary(w); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Block) DecodeBinary(r io.Reader) error {
+	if err := b.Header.DecodeBinary(r); err != nil {
+		return err
+	}
+
+	for _, tx := range b.Transactions {
+		if err := tx.DecodeBinary(r); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
