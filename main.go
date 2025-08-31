@@ -15,7 +15,7 @@ func main() {
 
 	go func() {
 		for {
-			trLocal.SendMessage(trRemote.Addr(), []byte("hello world"))
+			trRemote.SendMessage(trLocal.Addr(), []byte("hello world"))
 			time.Sleep(1 * time.Second)
 		}
 	}()
