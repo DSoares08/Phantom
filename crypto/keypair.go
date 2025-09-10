@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"math/big"
 
 	"github.com/DSoares08/Phantom/types"
@@ -21,8 +22,8 @@ func (k PrivateKey) Sign(data []byte) (*Signature, error) {
 	}
 
 	return &Signature{
-		r: r, 
-		s: s,
+		R: r, 
+		S: s,
 	}, nil
 }
 
@@ -36,15 +37,38 @@ func GeneratePrivateKey() PrivateKey {
 }
 
 func (k PrivateKey) PublicKey() PublicKey {
-	return PublicKey{key: &k.key.PublicKey}
+	return PublicKey{Key: &k.key.PublicKey}
 }
 
 type PublicKey struct {
-	key *ecdsa.PublicKey
+	Key *ecdsa.PublicKey
+}
+
+// GobEncode serializes the public key as compressed bytes, avoiding gob traversing
+// the unexported fields of elliptic.Curve implementations.
+func (k PublicKey) GobEncode() ([]byte, error) {
+	if k.Key == nil {
+		return nil, nil
+	}
+	return elliptic.MarshalCompressed(k.Key, k.Key.X, k.Key.Y), nil
+}
+
+// GobDecode restores the public key from its compressed form using P-256.
+func (k *PublicKey) GobDecode(data []byte) error {
+	if len(data) == 0 {
+		k.Key = nil
+		return nil
+	}
+	x, y := elliptic.UnmarshalCompressed(elliptic.P256(), data)
+	if x == nil || y == nil {
+		return errors.New("invalid public key bytes")
+	}
+	k.Key = &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}
+	return nil
 }
 
 func (k PublicKey) ToSlice() []byte {
-	return elliptic.MarshalCompressed(elliptic.P256(), k.key.X, k.key.Y)
+	return elliptic.MarshalCompressed(k.Key, k.Key.X, k.Key.Y)
 }
 
 func (k PublicKey) Address() types.Address {
@@ -54,9 +78,9 @@ func (k PublicKey) Address() types.Address {
 }
 
 type Signature struct {
-	s, r *big.Int
+	S, R *big.Int
 }
 
 func (sig Signature) Verify(pubKey PublicKey, data []byte) bool {
-	return ecdsa.Verify(pubKey.key, data, sig.r, sig.s)
+	return ecdsa.Verify(pubKey.Key, data, sig.R, sig.S)
 }
