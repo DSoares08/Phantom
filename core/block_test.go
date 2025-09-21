@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -32,6 +33,16 @@ func TestVerifyBlock(t *testing.T) {
 	assert.NotNil(t, b.Verify())
 }
 
+func TestDecodeEncodeBlock(t *testing.T) {
+	b := randomBlock(t, 1, types.Hash{})
+	buf := &bytes.Buffer{}
+	assert.Nil(t, b.Encode(NewGobBlockEncoder(buf)))
+	
+	bDecode := new(Block)
+	assert.Nil(t, bDecode.Decode(NewGobBlockDecoder(buf)))
+	assert.Equal(t, b, bDecode)
+}
+
 func randomBlock(t *testing.T, height uint32, prevBlockHash types.Hash) *Block {
 	privKey := crypto.GeneratePrivateKey()
 	tx := randomTxWithSignature(t)
@@ -42,7 +53,7 @@ func randomBlock(t *testing.T, height uint32, prevBlockHash types.Hash) *Block {
 		Height: height,
 	}
 
-	b, err := NewBlock(header, []Transaction{tx})
+	b, err := NewBlock(header, []*Transaction{tx})
 	assert.Nil(t, err)
 	dataHash, err := CalculateDataHash(b.Transactions)
 	assert.Nil(t, err)

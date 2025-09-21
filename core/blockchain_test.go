@@ -5,6 +5,7 @@ import (
 
 	"github.com/DSoares08/Phantom/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/go-kit/log"
 )
 
 func TestAddBlock(t *testing.T) {
@@ -55,7 +56,7 @@ func TestAddBlockToHigh(t *testing.T) {
 }
 
 func newBlockchainWithGenesis(t *testing.T) *Blockchain {
-	bc, err := NewBlockchain(randomBlock(t, 0, types.Hash{}))
+	bc, err := NewBlockchain(log.NewNopLogger(), randomBlock(t, 0, types.Hash{}))
 	assert.Nil(t, err)
 
 	return bc

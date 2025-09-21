@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"strconv"
 	"bytes"
 	"math/rand"
+	"time"
 
 	"github.com/DSoares08/Phantom/core"
 	"github.com/DSoares08/Phantom/crypto"
@@ -14,33 +14,62 @@ import (
 
 func main() {
 	trLocal := network.NewLocalTransport("LOCAL")
-	trRemote := network.NewLocalTransport("REMOTE")
+	trRemoteA := network.NewLocalTransport("REMOTE_A")
+	trRemoteB := network.NewLocalTransport("REMOTE_B")
+	trRemoteC := network.NewLocalTransport("REMOTE_C")
 
-	trLocal.Connect(trRemote)
-	trRemote.Connect(trLocal)
+	trLocal.Connect(trRemoteA)
+	trRemoteA.Connect(trRemoteB)
+	trRemoteB.Connect(trRemoteC)
+	trRemoteA.Connect(trLocal)
+
+	initRemoteServers([]network.Transport{trRemoteA, trRemoteB, trRemoteC})
 
 	go func() {
 		for {
-			// trRemote.SendMessage(trLocal.Addr(), []byte("hello world"))
-			if err := sendTransaction(trRemote, trLocal.Addr()); err != nil {
+			if err := sendTransaction(trRemoteA, trLocal.Addr()); err != nil {
 				fmt.Println(err)
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}()
 
+	go func() {
+		time.Sleep(7 * time.Second)
+
+		trLate := network.NewLocalTransport("LATE_REMOTE")
+		trRemoteC.Connect(trLate)
+		lateServer := makeServer(string(trLate.Addr()), trLate, nil)
+
+		go lateServer.Start()
+	}()
+
 	privKey := crypto.GeneratePrivateKey()
+	localServer := makeServer("LOCAL", trLocal, &privKey)
+	localServer.Start()
+}
+
+func initRemoteServers(trs []network.Transport) {
+	for i := 0; i < len(trs); i++ {
+		id := fmt.Sprintf("REMOTE_%d", i)
+		s := makeServer(id, trs[i], nil)
+		go s.Start()
+	}
+}
+
+func makeServer(id string, tr network.Transport, pk *crypto.PrivateKey) *network.Server {
 	opts := network.ServerOpts{
-		PrivateKey: &privKey,
-		ID: "LOCAL",
-		Transports: []network.Transport{trLocal},
+		PrivateKey: pk,
+		ID: id,
+		Transports: []network.Transport{tr},
 	}
 
 	s, err := network.NewServer(opts)
 	if err != nil {
 		fmt.Println(err)
 	}
-	s.Start()
+
+	return s
 }
 
 func sendTransaction(tr network.Transport, to network.NetAddr) error {
