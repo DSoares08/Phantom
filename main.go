@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"bytes"
-	"math/rand"
 	"time"
 
 	"github.com/DSoares08/Phantom/core"
@@ -74,7 +72,7 @@ func makeServer(id string, tr network.Transport, pk *crypto.PrivateKey) *network
 
 func sendTransaction(tr network.Transport, to network.NetAddr) error {
 	privKey := crypto.GeneratePrivateKey()
-	data := []byte(strconv.FormatInt(int64(rand.Intn(100000000)), 10))
+	data := []byte{0x02, 0x0a, 0x02, 0x0a, 0x0b}
 	tx := core.NewTransaction(data)
 	tx.Sign(privKey)
 	buf := &bytes.Buffer{}
