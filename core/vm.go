@@ -3,23 +3,50 @@ package core
 type Instruction byte
 
 const (
-	InstrPush Instruction = 0x0a // 10
+	InstrPushInt Instruction = 0x0a // 10
 	InstrAdd Instruction = 0x0b // 11
+	InstrPushByte Instruction = 0x0c 
+	InstrPack Instruction = 0x0d
+	InstrSub Instruction = 0x0e // 1
 )
+
+type Queue struct {
+	data []any
+	head int	
+}
+
+func NewQueue(size int) *Queue {
+	return &Queue{
+		data: make([]any, size),
+		head: 0,
+	}
+}
+
+func (q *Queue) Push(v any) {
+	q.data[q.head] = v
+	q.head++
+}
+
+
+func (q *Queue) Pop() any {
+	value := q.data[0]	
+	q.data = append(q.data[:0], q.data[1:]...)
+	q.head--
+
+	return value
+}
 
 type VM struct {
 	data []byte
 	ip int // instruction pointer
-	stack []byte
-	sp int // stack pointer
+	queue *Queue
 }
 
 func NewVM(data []byte) *VM {
 	return &VM{
 		data: data,
 		ip: 0,
-		stack: make([]byte, 1024),
-		sp: -1,
+		queue: NewQueue(128),
 	}
 }
 
@@ -42,18 +69,33 @@ func (vm *VM) Run() error {
 
 func (vm *VM) Exec(instr Instruction) error {
 	switch instr {
-	case InstrPush:
-		vm.pushStack(vm.data[vm.ip - 1])
+	case InstrPushInt:
+		vm.queue.Push(int(vm.data[vm.ip - 1]))
+
+	case InstrPushByte:
+		vm.queue.Push(byte(vm.data[vm.ip - 1]))
+
+	case InstrPack:
+		n := vm.queue.Pop().(int)
+		b := make([]byte, n)
+
+		for i := 0; i < n; i++ {
+			b[i] = vm.queue.Pop().(byte)
+		}
+
+		vm.queue.Push(b)
+
+	case InstrSub:
+		a := vm.queue.Pop().(int)
+		b := vm.queue.Pop().(int)
+		c := a - b
+		vm.queue.Push(c)
+
 	case InstrAdd:
-		a := vm.stack[0]
-		b := vm.stack[1]
+		a := vm.queue.Pop().(int)
+		b := vm.queue.Pop().(int)
 		c := a + b
-		vm.pushStack(c)
+		vm.queue.Push(c)
 	}
 	return nil
-}
-
-func (vm *VM) pushStack(b byte) {
-	vm.sp++
-	vm.stack[vm.sp] = b
 }
