@@ -1,5 +1,9 @@
 package core
 
+import (
+	"encoding/binary"
+)
+
 type Instruction byte
 
 const (
@@ -8,6 +12,7 @@ const (
 	InstrPushByte Instruction = 0x0c 
 	InstrPack Instruction = 0x0d
 	InstrSub Instruction = 0x0e // 1
+	InstrStore Instruction = 0x0f 
 )
 
 type Queue struct {
@@ -40,13 +45,15 @@ type VM struct {
 	data []byte
 	ip int // instruction pointer
 	queue *Queue
+	contractState *State
 }
 
-func NewVM(data []byte) *VM {
+func NewVM(data []byte, contractState *State) *VM {
 	return &VM{
 		data: data,
 		ip: 0,
 		queue: NewQueue(128),
+		contractState: contractState,
 	}
 }
 
@@ -69,6 +76,22 @@ func (vm *VM) Run() error {
 
 func (vm *VM) Exec(instr Instruction) error {
 	switch instr {
+	case InstrStore:
+		var (
+			key = vm.queue.Pop().([]byte)
+			value = vm.queue.Pop()
+			serializedValue []byte
+		)
+
+		switch v := value.(type) {
+		case int:
+			serializedValue = serializeInt64(int64(v))
+		default:
+			panic("TODO: unkown type")
+		}
+
+		vm.contractState.Put(key, serializedValue)
+
 	case InstrPushInt:
 		vm.queue.Push(int(vm.data[vm.ip - 1]))
 
@@ -98,4 +121,16 @@ func (vm *VM) Exec(instr Instruction) error {
 		vm.queue.Push(c)
 	}
 	return nil
+}
+
+func serializeInt64(value int64) []byte {
+	buf := make([]byte, 8)
+
+	binary.LittleEndian.PutUint64(buf, uint64(value))
+
+	return buf
+}
+
+func deserializeInt64(b []byte) int64 {
+	return int64(binary.LittleEndian.Uint64(b))
 }
