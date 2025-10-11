@@ -13,6 +13,7 @@ const (
 	InstrPack Instruction = 0x0d
 	InstrSub Instruction = 0x0e // 1
 	InstrStore Instruction = 0x0f 
+	InstrGet Instruction = 0xae
 )
 
 type Queue struct {
@@ -28,7 +29,9 @@ func NewQueue(size int) *Queue {
 }
 
 func (q *Queue) Push(v any) {
-	q.data[q.head] = v
+	q.data = append([]any{v}, q.data...)
+
+	// q.data[q.head] = v
 	q.head++
 }
 
@@ -76,6 +79,15 @@ func (vm *VM) Run() error {
 
 func (vm *VM) Exec(instr Instruction) error {
 	switch instr {
+	case InstrGet:
+		key := vm.queue.Pop().([]byte)
+		value, err := vm.contractState.Get(key)
+		if err != nil {
+			return err
+		}
+
+		vm.queue.Push(value)
+
 	case InstrStore:
 		var (
 			key = vm.queue.Pop().([]byte)
