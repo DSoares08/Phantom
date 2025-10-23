@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"net"
 
 	"github.com/DSoares08/Phantom/core"
 )
@@ -20,7 +21,7 @@ const (
 )
 
 type RPC struct {
-	From    NetAddr
+	From net.Addr  
 	Payload io.Reader
 }
 
@@ -43,7 +44,7 @@ func (msg *Message) Bytes() []byte {
 }
 
 type DecodedMessage struct {
-	From NetAddr
+	From net.Addr
 	Data any
 }
 

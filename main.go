@@ -3,30 +3,34 @@ package main
 import (
 	"fmt"
 	"net"
-	"time"
+	"bytes"
 
 	"github.com/DSoares08/Phantom/crypto"
 	"github.com/DSoares08/Phantom/network"
+	"github.com/DSoares08/Phantom/core"
 )
 
 func main() {
 	privKey := crypto.GeneratePrivateKey()
-	localNode := makeServer("LOCAL_NODE", &privKey)
-
+	localNode := makeServer("LOCAL_NODE", &privKey, ":3000", []string{":4000"})
 	go localNode.Start()
 
-	time.Sleep(1 * time.Second)
+	remoteNode := makeServer("REMOTE_NODE", nil, ":4000", []string{":5000"})
+	go remoteNode.Start()
 
-	for i := 0; i < 10; i++ {
-		go tcpTester()
-	}
+	remoteNodeB := makeServer("REMOTE_NODE_B", nil, ":5000", nil)
+	go remoteNodeB.Start()
+	// time.Sleep(1 * time.Second)
+
+	// tcpTester()
 
 	select {}
 }
 
-func makeServer(id string, pk *crypto.PrivateKey) *network.Server {
+func makeServer(id string, pk *crypto.PrivateKey, addr string, seedNodes []string) *network.Server {
 	opts := network.ServerOpts{
-		TCPTransport: network.NewTCPTransport(":3000"),
+		SeedNodes: seedNodes,
+		ListenAddr: addr,
 		PrivateKey: pk,
 		ID: id,
 	}
@@ -45,7 +49,18 @@ func tcpTester() {
 		panic(err)
 	}
 
-	_, err = conn.Write([]byte("Hello you!"))
+	privKey := crypto.GeneratePrivateKey()
+	data := []byte{0x03, 0x0a, 0x46, 0x0c, 0x4f, 0x0c, 0x4f, 0x0c, 0x0d, 0x05, 0x0a, 0x0f}
+	tx := core.NewTransaction(data)
+	tx.Sign(privKey)
+	buf := &bytes.Buffer{}
+	if err := tx.Encode(core.NewGobTxEncoder(buf)); err != nil {
+		panic(err)
+	}
+
+	msg := network.NewMessage(network.MessageTypeTx, buf.Bytes())
+
+	_, err = conn.Write(msg.Bytes())
 	if err != nil {
 		panic(err)
 	}

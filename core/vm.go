@@ -29,9 +29,7 @@ func NewQueue(size int) *Queue {
 }
 
 func (q *Queue) Push(v any) {
-	q.data = append([]any{v}, q.data...)
-
-	// q.data[q.head] = v
+	q.data[q.head] = v
 	q.head++
 }
 
