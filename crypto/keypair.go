@@ -11,6 +11,8 @@ import (
 	"github.com/DSoares08/Phantom/types"
 )
 
+type PubKey []byte
+
 type PrivateKey struct {
 	key *ecdsa.PrivateKey
 }
@@ -34,6 +36,10 @@ func GeneratePrivateKey() PrivateKey {
 	}
 
 	return PrivateKey{key: key}
+}
+
+func (k PrivateKey) PubKey() PubKey {
+	return elliptic.MarshalCompressed(k.key.PublicKey, k.key.PublicKey.X, k.key.PublicKey.Y)
 }
 
 func (k PrivateKey) PublicKey() PublicKey {
