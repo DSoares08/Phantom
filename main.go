@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"net"
+	"net/http"
 	"time"
 
 	"github.com/DSoares08/Phantom/core"
@@ -31,7 +31,14 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 
-	txSender()
+	txSendTicker := time.NewTicker(1 * time.Second)
+	go func() {
+		for {
+			txSender()
+
+			<-txSendTicker.C
+		}
+	}()
 
 	select {}
 }
@@ -54,11 +61,6 @@ func makeServer(id string, pk *crypto.PrivateKey, addr string, seedNodes []strin
 }
 
 func txSender() {
-	conn, err := net.Dial("tcp", ":3000")
-	if err != nil {
-		panic(err)
-	}
-
 	privKey := crypto.GeneratePrivateKey()
 	data := []byte{0x03, 0x0a, 0x46, 0x0c, 0x4f, 0x0c, 0x4f, 0x0c, 0x0d, 0x05, 0x0a, 0x0f}
 	tx := core.NewTransaction(data)
@@ -68,9 +70,13 @@ func txSender() {
 		panic(err)
 	}
 
-	msg := network.NewMessage(network.MessageTypeTx, buf.Bytes())
+	req, err := http.NewRequest("POST", "http://localhost:8080/tx", buf)
+	if err != nil {
+		panic(err)
+	}
 
-	_, err = conn.Write(msg.Bytes())
+	client := http.Client{}
+	_, err = client.Do(req)
 	if err != nil {
 		panic(err)
 	}
