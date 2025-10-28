@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNativeTransferTransaction(t *testing.T) {
+	fromPrivKey := crypto.GeneratePrivateKey()
+	toPrivKey := crypto.GeneratePrivateKey()
+	tx := &Transaction{
+		To: toPrivKey.PublicKey(),
+		Value: 100,
+	}
+
+	assert.Nil(t, tx.Sign(fromPrivKey))
+}
+
 func TestSignTransaction(t *testing.T) {
 	privKey := crypto.GeneratePrivateKey()
 	tx := &Transaction{

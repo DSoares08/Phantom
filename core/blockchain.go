@@ -17,6 +17,10 @@ type Blockchain struct {
 	blocks []*Block
 	txStore map[types.Hash]*Transaction
 	blockStore map[types.Hash]*Block
+
+	accountState *AccountState
+
+	stateLock sync.RWMutex
 	validator Validator
 	// TODO: make this an interface
 	contractState *State
@@ -27,6 +31,7 @@ func NewBlockchain(l log.Logger, genesis *Block) (*Blockchain, error) {
 		headers: []*Header{},
 		store: NewMemoryStore(),
 		logger: l,
+		accountState: NewAccountState(),
 		blockStore: make(map[types.Hash]*Block),
 		txStore: make(map[types.Hash]*Transaction),
 		contractState: NewState(),
@@ -46,16 +51,34 @@ func (bc *Blockchain) AddBlock(b *Block) error {
 		return err
 	}
 
-	for _, tx := range b.Transactions {
-		bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(&TxHasher{}))
+	bc.stateLock.Lock()
+	defer bc.stateLock.Unlock()
 
-		vm := NewVM(tx.Data, bc.contractState)
-		if err := vm.Run(); err != nil {
-			return err
+	for _, tx := range b.Transactions {
+		if len(tx.Data) > 0 {
+			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(&TxHasher{}))
+
+			vm := NewVM(tx.Data, bc.contractState)
+			if err := vm.Run(); err != nil {
+				return err
+			}
+		}
+
+		// Handle native transfer
+		if tx.Value > 0 {
+			if err := bc.handleNativeTransfer(tx); err != nil {
+				return err
+			}
 		}
 	}
 
 	return bc.addBlockWithoutValidation(b)
+}
+
+func (bc *Blockchain) handleNativeTransfer(tx *Transaction) error {
+	bc.logger.Log("msg", "handling native transfer", "from", tx.From, "to", tx.To, "value", tx.Value)
+
+	return bc.accountState.Transfer(tx.From.Address(), tx.To.Address(), tx.Value)
 }
 
 func (bc *Blockchain) GetBlockByHash(hash types.Hash) (*Block, error) {
