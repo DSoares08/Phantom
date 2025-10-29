@@ -178,7 +178,9 @@ func (s *Server) validatorLoop() {
 	fmt.Println(s.ID, "Starting validator loop", "blockTime", s.BlockTime)
 	for {
 		<-ticker.C
-		s.createNewBlock()
+		if err := s.createNewBlock(); err != nil {
+			s.Logger.Log("create block error", err)
+		}
 	}
 }
 
@@ -272,8 +274,8 @@ func (s *Server) processBlocksMessage(from net.Addr, data *BlocksMessage) error 
 
 	for _, block := range data.Blocks {
 		if err := s.chain.AddBlock(block); err != nil {
-			fmt.Printf("adding block error %s\n", err)
-			continue
+			s.Logger.Log("error", err.Error())
+			return err
 		}
 	}
 
@@ -321,6 +323,7 @@ func (s *Server) processGetStatusMessage(from net.Addr, data *GetStatusMessage) 
 
 func (s *Server) processBlock(b *core.Block) error {
 	if err := s.chain.AddBlock(b); err != nil {
+		s.Logger.Log("error", err.Error())
 		return err
 	}
 
@@ -447,6 +450,9 @@ func genesisBlock() *core.Block {
 	}
 
 	b, _ := core.NewBlock(header, nil)
+
+	// Where all the currency is minted
+	// coinbase := crypto.GeneratePrivateKey()
 
 	privKey := crypto.GeneratePrivateKey()
 	if err := b.Sign(privKey); err != nil {

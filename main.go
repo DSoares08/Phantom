@@ -31,7 +31,7 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 
-	if err := txSender(); err != nil {
+	if err := txSender(privKey); err != nil {
 		panic(err)
 	}
 
@@ -64,9 +64,9 @@ func makeServer(id string, pk *crypto.PrivateKey, addr string, seedNodes []strin
 	return s
 }
 
-func txSender() error {
-	privKey := crypto.GeneratePrivateKey()
+func txSender(privKey crypto.PrivateKey) error {
 	toPrivKey := crypto.GeneratePrivateKey()
+
 	tx := core.NewTransaction(nil)
 	tx.To = toPrivKey.PublicKey()
 	tx.Value = 100

@@ -27,11 +27,15 @@ type Blockchain struct {
 }
 
 func NewBlockchain(l log.Logger, genesis *Block) (*Blockchain, error) {
+
+	// TODO: Read this from disk
+	accountState := NewAccountState()
+
 	bc := &Blockchain{
 		headers: []*Header{},
 		store: NewMemoryStore(),
 		logger: l,
-		accountState: NewAccountState(),
+		accountState: accountState,
 		blockStore: make(map[types.Hash]*Block),
 		txStore: make(map[types.Hash]*Transaction),
 		contractState: NewState(),
@@ -51,32 +55,15 @@ func (bc *Blockchain) AddBlock(b *Block) error {
 		return err
 	}
 
-	bc.stateLock.Lock()
-	defer bc.stateLock.Unlock()
-
-	for _, tx := range b.Transactions {
-		if len(tx.Data) > 0 {
-			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(&TxHasher{}))
-
-			vm := NewVM(tx.Data, bc.contractState)
-			if err := vm.Run(); err != nil {
-				return err
-			}
-		}
-
-		// Handle native transfer
-		if tx.Value > 0 {
-			if err := bc.handleNativeTransfer(tx); err != nil {
-				return err
-			}
-		}
-	}
 
 	return bc.addBlockWithoutValidation(b)
 }
 
 func (bc *Blockchain) handleNativeTransfer(tx *Transaction) error {
-	bc.logger.Log("msg", "handling native transfer", "from", tx.From, "to", tx.To, "value", tx.Value)
+	bc.logger.Log("msg", "handling native transfer", 
+		"from", tx.From, 
+		"to", tx.To, 
+		"value", tx.Value)
 
 	return bc.accountState.Transfer(tx.From.Address(), tx.To.Address(), tx.Value)
 }
@@ -141,6 +128,30 @@ func (bc *Blockchain) Height() uint32 {
 }
 
 func (bc *Blockchain) addBlockWithoutValidation(b *Block) error {
+	bc.stateLock.Lock()
+	for _, tx := range b.Transactions {
+		if len(tx.Data) > 0 {
+			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(&TxHasher{}))
+
+			vm := NewVM(tx.Data, bc.contractState)
+			if err := vm.Run(); err != nil {
+				return err
+			}
+		}
+
+		// Handle native transfer
+		if tx.Value > 0 {
+			if err := bc.handleNativeTransfer(tx); err != nil {
+				return err
+			}
+		}
+	}
+	bc.stateLock.Unlock()
+
+	fmt.Println("==========ACCOUNT STATE=====================")
+	fmt.Printf("%+v\n", bc.accountState.accounts)
+	fmt.Println("==========ACCOUNT STATE=====================")
+
 	bc.lock.Lock()
 	bc.headers = append(bc.headers, b.Header)
 	bc.blocks = append(bc.blocks, b)
