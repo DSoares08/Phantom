@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/DSoares08/Phantom/crypto"
 	"github.com/DSoares08/Phantom/types"
 	"github.com/go-kit/log"
 )
@@ -30,6 +31,10 @@ func NewBlockchain(l log.Logger, genesis *Block) (*Blockchain, error) {
 
 	// TODO: Read this from disk
 	accountState := NewAccountState()
+	
+	coinbase := crypto.PublicKey{}
+	fmt.Println(coinbase.Address())
+	accountState.CreateAccount(coinbase.Address())
 
 	bc := &Blockchain{
 		headers: []*Header{},

@@ -176,11 +176,15 @@ func (s *Server) validatorLoop() {
 	ticker := time.NewTicker(s.BlockTime)
 
 	fmt.Println(s.ID, "Starting validator loop", "blockTime", s.BlockTime)
+
 	for {
-		<-ticker.C
+		fmt.Println("creating new block")
+
 		if err := s.createNewBlock(); err != nil {
 			s.Logger.Log("create block error", err)
 		}
+
+		<-ticker.C
 	}
 }
 
@@ -452,7 +456,12 @@ func genesisBlock() *core.Block {
 	b, _ := core.NewBlock(header, nil)
 
 	// Where all the currency is minted
-	// coinbase := crypto.GeneratePrivateKey()
+	coinbase := crypto.PublicKey{}
+	tx := core.NewTransaction(nil)
+	tx.From = coinbase
+	tx.To = coinbase
+	tx.Value = 10_000_000
+	b.Transactions = append(b.Transactions, tx)
 
 	privKey := crypto.GeneratePrivateKey()
 	if err := b.Sign(privKey); err != nil {

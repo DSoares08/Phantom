@@ -31,9 +31,9 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 
-	if err := txSender(privKey); err != nil {
-		panic(err)
-	}
+	// if err := txSender(privKey); err != nil {
+	// 	panic(err)
+	// }
 
 	// txSendTicker := time.NewTicker(1 * time.Second)
 	// go func() {
