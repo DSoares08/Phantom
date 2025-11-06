@@ -62,6 +62,7 @@ func TestSendNativeTransferInsufficientFunds(t *testing.T) {
 	tx.hash = types.Hash{}
 	
 	block.AddTransaction(tx)
+	assert.Nil(t, block.Sign(signer))
 	assert.Nil(t, bc.AddBlock(block))
 
 	_, err := bc.accountState.GetAccount(privKeyAlice.PublicKey().Address())
@@ -93,11 +94,37 @@ func TestSendNativeTransferSuccess(t *testing.T) {
 	tx.Value = amount
 	tx.Sign(privKeyBob)
 	block.AddTransaction(tx)
+	assert.Nil(t, block.Sign(signer))
 	assert.Nil(t, bc.AddBlock(block))
 
 	accountAlice, err := bc.accountState.GetAccount(privKeyAlice.PublicKey().Address())
 	assert.Nil(t, err)
 	assert.Equal(t, accountAlice.Balance, amount)
+}
+
+func TestBlockValidatorReward(t *testing.T) {
+	bc := newBlockchainWithGenesis(t)
+	validator := crypto.GeneratePrivateKey()
+
+	// Create and add a block
+	block := randomBlock(t, uint32(1), getPrevBlockHash(t, bc, uint32(1)))
+	assert.Nil(t, block.Sign(validator))
+	assert.Nil(t, bc.AddBlock(block))
+
+	// Check that validator received the reward
+	validatorAccount, err := bc.accountState.GetAccount(validator.PublicKey().Address())
+	assert.Nil(t, err)
+	assert.Equal(t, BlockReward, validatorAccount.Balance)
+
+	// Add another block by the same validator
+	block2 := randomBlock(t, uint32(2), getPrevBlockHash(t, bc, uint32(2)))
+	assert.Nil(t, block2.Sign(validator))
+	assert.Nil(t, bc.AddBlock(block2))
+
+	// Check that validator received rewards for both blocks
+	validatorAccount, err = bc.accountState.GetAccount(validator.PublicKey().Address())
+	assert.Nil(t, err)
+	assert.Equal(t, BlockReward*2, validatorAccount.Balance)
 }
 
 func TestAddBlock(t *testing.T) {

@@ -17,7 +17,8 @@ type PrivateKey struct {
 }
 
 func (k PrivateKey) Sign(data []byte) (*Signature, error) {
-	r, s, err := ecdsa.Sign(rand.Reader, k.key, data)
+	hash := sha256.Sum256(data)
+	r, s, err := ecdsa.Sign(rand.Reader, k.key, hash[:])
 	if err != nil {
 		return nil, err
 	}
@@ -69,9 +70,10 @@ func (sig Signature) String() string {
 }
 
 func (sig Signature) Verify(pubKey PublicKey, data []byte) bool {
+	hash := sha256.Sum256(data)
 	x, y := elliptic.UnmarshalCompressed(elliptic.P256(), pubKey)
 	key := &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}
 
-	return ecdsa.Verify(key, data, sig.R, sig.S)
+	return ecdsa.Verify(key, hash[:], sig.R, sig.S)
 }
 

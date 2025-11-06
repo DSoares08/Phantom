@@ -9,6 +9,8 @@ import (
 	"github.com/go-kit/log"
 )
 
+const BlockReward = uint64(100)
+
 type Blockchain struct {
 	logger log.Logger
 	store Storage
@@ -163,6 +165,16 @@ func (bc *Blockchain) addBlockWithoutValidation(b *Block) error {
 			continue
 		}
 	}
+	
+	// Reward the validator
+	validatorAddr := b.Validator.Address()
+	if _, err := bc.accountState.getAccountWithoutLock(validatorAddr); err != nil {
+		bc.accountState.accounts[validatorAddr] = &Account{Address: validatorAddr}
+	}
+	bc.accountState.mu.Lock()
+	bc.accountState.accounts[validatorAddr].Balance += BlockReward
+	bc.accountState.mu.Unlock()
+	
 	bc.stateLock.Unlock()
 
 	// fmt.Println("==========ACCOUNT STATE=====================")
