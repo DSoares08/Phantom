@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/DSoares08/Phantom/crypto"
@@ -12,7 +11,6 @@ import (
 
 func TestSendNativeTransferTamper(t *testing.T) {
 	bc := newBlockchainWithGenesis(t)
-
 	signer := crypto.GeneratePrivateKey()
 
 	block := randomBlock(t, uint32(1), getPrevBlockHash(t, bc, uint32(1)))
@@ -30,24 +28,20 @@ func TestSendNativeTransferTamper(t *testing.T) {
 	tx.To = privKeyAlice.PublicKey()
 	tx.Value = amount
 	tx.Sign(privKeyBob)
+	tx.hash = types.Hash{}
 
 	hackerPrivKey := crypto.GeneratePrivateKey()
 	tx.To = hackerPrivKey.PublicKey()
 
 	block.AddTransaction(tx)
+	assert.NotNil(t, bc.AddBlock(block))
 
-	assert.Nil(t, bc.AddBlock(block))
-
-	fmt.Printf("%+v\n", hackerPrivKey.PublicKey().Address())
-	fmt.Printf("%+v\n", bc.accountState.accounts)
-
-	_, err := bc.accountState.GetAccount(privKeyAlice.PublicKey().Address())
-	assert.NotNil(t, err)
+	_, err := bc.accountState.GetAccount(hackerPrivKey.PublicKey().Address())
+	assert.Equal(t, err, ErrAccountNotFound)
 }
 
 func TestSendNativeTransferInsufficientFunds(t *testing.T) {
 	bc := newBlockchainWithGenesis(t)
-
 	signer := crypto.GeneratePrivateKey()
 
 	block := randomBlock(t, uint32(1), getPrevBlockHash(t, bc, uint32(1)))
@@ -65,10 +59,16 @@ func TestSendNativeTransferInsufficientFunds(t *testing.T) {
 	tx.To = privKeyAlice.PublicKey()
 	tx.Value = amount
 	tx.Sign(privKeyBob)
+	tx.hash = types.Hash{}
+	
 	block.AddTransaction(tx)
-	assert.NotNil(t, bc.AddBlock(block))
+	assert.Nil(t, bc.AddBlock(block))
 
 	_, err := bc.accountState.GetAccount(privKeyAlice.PublicKey().Address())
+	assert.NotNil(t, err)
+
+	hash := tx.Hash(TxHasher{})
+	_, err = bc.GetTxByHash(hash)
 	assert.NotNil(t, err)
 }
 

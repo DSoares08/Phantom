@@ -33,7 +33,6 @@ func NewBlockchain(l log.Logger, genesis *Block) (*Blockchain, error) {
 	accountState := NewAccountState()
 	
 	coinbase := crypto.PublicKey{}
-	fmt.Println(coinbase.Address())
 	accountState.CreateAccount(coinbase.Address())
 
 	bc := &Blockchain{
@@ -132,30 +131,43 @@ func (bc *Blockchain) Height() uint32 {
 	return uint32(len(bc.headers) - 1)
 }
 
+func (bc *Blockchain) handleTransaction(tx *Transaction) error {
+	if len(tx.Data) > 0 {
+		bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(&TxHasher{}))
+
+		vm := NewVM(tx.Data, bc.contractState)
+		if err := vm.Run(); err != nil {
+			return err
+		}
+	}
+
+	// Handle native transfer
+	if tx.Value > 0 {
+		if err := bc.handleNativeTransfer(tx); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (bc *Blockchain) addBlockWithoutValidation(b *Block) error {
 	bc.stateLock.Lock()
-	for _, tx := range b.Transactions {
-		if len(tx.Data) > 0 {
-			bc.logger.Log("msg", "executing code", "len", len(tx.Data), "hash", tx.Hash(&TxHasher{}))
+	for i := 0; i < len(b.Transactions); i++ {
+		if err := bc.handleTransaction(b.Transactions[i]); err != nil {
+			fmt.Printf("TX error: %s\n", err)
 
-			vm := NewVM(tx.Data, bc.contractState)
-			if err := vm.Run(); err != nil {
-				return err
-			}
-		}
+			b.Transactions[i] = b.Transactions[len(b.Transactions)-1]
+			b.Transactions = b.Transactions[:len(b.Transactions)-1]
 
-		// Handle native transfer
-		if tx.Value > 0 {
-			if err := bc.handleNativeTransfer(tx); err != nil {
-				return err
-			}
+			continue
 		}
 	}
 	bc.stateLock.Unlock()
 
-	fmt.Println("==========ACCOUNT STATE=====================")
-	fmt.Printf("%+v\n", bc.accountState.accounts)
-	fmt.Println("==========ACCOUNT STATE=====================")
+	// fmt.Println("==========ACCOUNT STATE=====================")
+	// fmt.Printf("%+v\n", bc.accountState.accounts)
+	// fmt.Println("==========ACCOUNT STATE=====================")
 
 	bc.lock.Lock()
 	bc.headers = append(bc.headers, b.Header)
@@ -165,7 +177,6 @@ func (bc *Blockchain) addBlockWithoutValidation(b *Block) error {
 	for _, tx := range b.Transactions {
 		bc.txStore[tx.Hash(TxHasher{})] = tx
 	}
-
 	bc.lock.Unlock()
 
 	bc.logger.Log(
